@@ -71,47 +71,40 @@ to quickly create a Cobra application.`,
 	
 		osArgs := os.Args[1:]
 		fmt.Println(osArgs)
-	
-		// if osArgs[0] == "server" {
-			address := "0.0.0.0:8000"
-			
-			lis, err := net.Listen("tcp", address)
-			// lis, err := 
-			http.HandleFunc("/createTodo", CreateTodo)
-			http.HandleFunc("/hello", HelloServer)
-			http.HandleFunc("/", HelloServer)
-			http.ListenAndServe(":8080", nil)
-			
-			db, err := sql.Open("mysql", "root:12345678@tcp(127.0.0.1:3306)/testdb")
-			defer db.Close()
-
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			sql := "SELECT * FROM testdb.todo;"
-			res, err := db.Exec(sql)
 		
-			fmt.Printf("res %s", res)
+		address := "0.0.0.0:8000"
+		
+		lis, err := net.Listen("tcp", address)
+		http.HandleFunc("/getTodo", GetTodo)
+		http.HandleFunc("/createTodo", CreateTodo)
+		http.HandleFunc("/updateTodo", UpdateTodo)
+		http.HandleFunc("/", HelloServer)
+		http.ListenAndServe(":8080", nil)
+		
+		db, err := sql.Open("mysql", "root:12345678@tcp(127.0.0.1:3306)/testdb")
+		defer db.Close()
 
-			if err != nil {
-				panic(err.Error())
-			}
+		if err != nil {
+			log.Fatal(err)
+		}
 
-			if err != nil {
-				log.Fatalf("Error %v", err)
-			}
+		sql := "SELECT * FROM testdb.todo;"
+		res, err := db.Exec(sql)
 	
-			fmt.Printf("Server is listening on %v ...\n", address)
-	
-			s := grpc.NewServer()
-			v.RegisterUserServiceServer(s, &server{})
-	
-			s.Serve(lis)
-		// } else if osArgs[0] == "client" {
-		// 	fmt.Printf("Serv");
-		// 	RunClient()
-		// }
+		fmt.Printf("res %s", res)
+
+		if err != nil {
+			panic(err.Error())
+		}
+
+		if err != nil {
+			log.Fatalf("Error %v", err)
+		}
+
+		fmt.Printf("Server is listening on %v ...\n", address)
+		s := grpc.NewServer()
+		v.RegisterUserServiceServer(s, &server{})
+		s.Serve(lis)
 	},
 }
 
@@ -129,20 +122,13 @@ func CreateTodo(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	sql := "SELECT * FROM testdb.todo;"
+	sql := "INSERT INTO testdb.todo(Id, Description, Completed) VALUES (" + ");";
 	res, err := db.Query(sql)
-
-	// var todoItems []TodoItemModel;
-	// fmt.Printf("res %s", re)
-	de := "";
+	var todoItems []TodoItemModel;
+	de := "[";
 	if res.Next() {
-		// inde := 0;
         var city TodoItemModel
         err := res.Scan(&city.Id, &city.Description, &city.Completed)
-		// x["Id"] = &city.Id;
-		// x["Description"] = &city.Description;
-		// x["Completed"] = &city.Completed;
-		
 		todo := &TodoItemModel{
 			Id: city.Id,
 			Description: city.Description,
@@ -154,29 +140,99 @@ func CreateTodo(w http.ResponseWriter, r *http.Request) {
         }
 
 		data, err :=json.Marshal(todo)
-		// data = string(data)
 		de += string(data) 
-		// todoItems = append(todoItems, string(data))  
+		todoItems = append(todoItems, *todo)  
         fmt.Printf("%v\n", string(data))
     } else {
-
         fmt.Println("No city found")
     }
+	de += "]";
 	fmt.Println(de)
-
-	// var x map[string]interface{}
-	// json.Unmarshal([]byte(todoItems), &x);
-
-	// var x map[string]interface{}
-
-	// json.Unmarshal([]TodoItemModel(res), &x);
-
 	w.Header().Add("Content-Type", "application/json")
-
 	defer db.Close()
-
     fmt.Fprintf(w, "%s", de)
-	// w.Write(dat);
+}
+
+func GetTodo(w http.ResponseWriter, r *http.Request) {
+	dat, err := json.Marshal(r.Body)
+	fmt.Println("dat %s", dat);
+	fmt.Println("err %s", err);
+
+	db, err := sql.Open("mysql", "root:12345678@tcp(127.0.0.1:3306)/testdb")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sql := "SELECT * FROM testdb.todo;"
+	res, err := db.Query(sql)
+	var todoItems []TodoItemModel;
+	de := "[";
+	if res.Next() {
+        var city TodoItemModel
+        err := res.Scan(&city.Id, &city.Description, &city.Completed)
+		todo := &TodoItemModel{
+			Id: city.Id,
+			Description: city.Description,
+			Completed: city.Completed,
+		}
+		// json.Marshal(todo)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+		data, err :=json.Marshal(todo)
+		de += string(data) 
+		todoItems = append(todoItems, *todo)  
+        fmt.Printf("%v\n", string(data))
+    } else {
+        fmt.Println("No city found")
+    }
+	de += "]";
+	fmt.Println(de)
+	w.Header().Add("Content-Type", "application/json")
+	defer db.Close()
+    fmt.Fprintf(w, "%s", de)
+}
+
+func UpdateTodo(w http.ResponseWriter, r *http.Request) {
+	dat, err := json.Marshal(r.Body)
+	fmt.Println("dat %s", dat);
+	fmt.Println("err %s", err);
+
+	db, err := sql.Open("mysql", "root:12345678@tcp(127.0.0.1:3306)/testdb")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sql := "SELECT * FROM testdb.todo;"
+	res, err := db.Query(sql)
+	var todoItems []TodoItemModel;
+	de := "[";
+	if res.Next() {
+        var city TodoItemModel
+        err := res.Scan(&city.Id, &city.Description, &city.Completed)
+		todo := &TodoItemModel{
+			Id: city.Id,
+			Description: city.Description,
+			Completed: city.Completed,
+		}
+		// json.Marshal(todo)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+		data, err :=json.Marshal(todo)
+		de += string(data) 
+		todoItems = append(todoItems, *todo)  
+        fmt.Printf("%v\n", string(data))
+    } else {
+        fmt.Println("No city found")
+    }
+	de += "]";
+	fmt.Println(de)
+	w.Header().Add("Content-Type", "application/json")
+	defer db.Close()
+    fmt.Fprintf(w, "%s", de)
 }
 
 func init() {
