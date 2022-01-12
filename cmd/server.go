@@ -6,9 +6,12 @@ package cmd
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"os"
 
 	v "github.com/aadityadev/mstodo/pkg/api/v1"
@@ -61,9 +64,23 @@ to quickly create a Cobra application.`,
 		osArgs := os.Args[1:]
 		fmt.Println(osArgs)
 	
-		if osArgs[0] == "server" {
+		// if osArgs[0] == "server" {
 			address := "0.0.0.0:8000"
+			
 			lis, err := net.Listen("tcp", address)
+			// lis, err := 
+			http.HandleFunc("/createTodo", CreateTodo)
+			http.HandleFunc("/hello", HelloServer)
+			http.HandleFunc("/", HelloServer)
+			http.ListenAndServe(":8080", nil)
+			
+			db, err := sql.Open("mysql", "user7:s$cret@tcp(127.0.0.1:3306)/testdb")
+			defer db.Close()
+
+			if err != nil {
+				log.Fatal(err)
+			}
+			
 			if err != nil {
 				log.Fatalf("Error %v", err)
 			}
@@ -74,11 +91,24 @@ to quickly create a Cobra application.`,
 			v.RegisterUserServiceServer(s, &server{})
 	
 			s.Serve(lis)
-		} else if osArgs[0] == "client" {
-			fmt.Printf("Serv");
-			// RunClient()
-		}
+		// } else if osArgs[0] == "client" {
+		// 	fmt.Printf("Serv");
+		// 	RunClient()
+		// }
 	},
+}
+
+func HelloServer(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprintf(w, "Hello, %s!", r.URL.Path[1:])
+}
+
+func CreateTodo(w http.ResponseWriter, r *http.Request) {
+	dat, err := json.Marshal(r.Body)
+	fmt.Println("dat %s", dat);
+	fmt.Println("err %s", err);
+	w.Header().Add("Content-Type", "application/json")
+    fmt.Fprintf(w, "Hello, %s!", dat)
+	// w.Write(dat);
 }
 
 func init() {

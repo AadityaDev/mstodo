@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -39,13 +40,39 @@ to quickly create a Cobra application.`,
 		defer cc.Close()
 
 		client := v.NewUserServiceClient(cc)
-		name := args[0];
-		fmt.Println("User Name/(0) is: %d", name)
+		// x := map[string]string{}
+		var x map[string]interface{}
 
-		request := &v.UserRequest{Id: 1}
+
+		// var p v.UserRequest;
+		// var sb strings.Builder
+		// sb.WriteString("")
+		// sb.WriteString(args[0])
+		// sb.WriteString("")
+
+		// map1 := map[string]string{args[0]}
+		// name := 
+		json.Unmarshal([]byte(args[0]), &x);
+		// if err != nil {
+		// 	fmt.Println(err.Error())
+		// 	return
+		// }
+		// name := make(map[string]interface{args[0]});
+		// name, err := json.Marshal([]byte(args[0]));
+
+		// map1 := map[string]string{sb};
+		// fmt.Println("User Name/(0) is: %d", sb.String())
+		// fmt.Println("User Name/(name) is: %d", name)
+		// fmt.Println("User Name/(name) is: %d", json.Valid(x))
+		// fmt.Println("User Name/(mar) is: %d", json.Unmarshal([]byte(name)))
+		fmt.Println("User Name/(map) is: %d", x)
+		fmt.Println("User Name/(p) is: %s", x["Name"])
+
+		request := &v.UserRequest{Id:1};
+		// request := &v.UserRequest{Id: args[0].id, Name: args[0].name}
 
 		resp, _ := client.GetUser(context.Background(), request)
-		fmt.Printf("User's name received: %v\n", resp.Name)
+		fmt.Printf("User's name received: %v\n", resp)
 
 	},
 }
