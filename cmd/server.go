@@ -19,10 +19,18 @@ import (
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type server struct {
 	v.UnimplementedUserServiceServer
+}
+
+type TodoItemModel struct{
+	Id int `json:"Id"`
+	Description string `json:"Description"`
+	Completed bool `json:"Completed"`
 }
 
 func (*server) GetUser(ctx context.Context, request *v.UserRequest) (*v.UserResponse, error) {
@@ -74,13 +82,22 @@ to quickly create a Cobra application.`,
 			http.HandleFunc("/", HelloServer)
 			http.ListenAndServe(":8080", nil)
 			
-			db, err := sql.Open("mysql", "user7:s$cret@tcp(127.0.0.1:3306)/testdb")
+			db, err := sql.Open("mysql", "root:12345678@tcp(127.0.0.1:3306)/testdb")
 			defer db.Close()
 
 			if err != nil {
 				log.Fatal(err)
 			}
-			
+
+			sql := "SELECT * FROM testdb.todo;"
+			res, err := db.Exec(sql)
+		
+			fmt.Printf("res %s", res)
+
+			if err != nil {
+				panic(err.Error())
+			}
+
 			if err != nil {
 				log.Fatalf("Error %v", err)
 			}
@@ -106,8 +123,59 @@ func CreateTodo(w http.ResponseWriter, r *http.Request) {
 	dat, err := json.Marshal(r.Body)
 	fmt.Println("dat %s", dat);
 	fmt.Println("err %s", err);
+
+	db, err := sql.Open("mysql", "root:12345678@tcp(127.0.0.1:3306)/testdb")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sql := "SELECT * FROM testdb.todo;"
+	res, err := db.Query(sql)
+
+	// var todoItems []TodoItemModel;
+	// fmt.Printf("res %s", re)
+	de := "";
+	if res.Next() {
+		// inde := 0;
+        var city TodoItemModel
+        err := res.Scan(&city.Id, &city.Description, &city.Completed)
+		// x["Id"] = &city.Id;
+		// x["Description"] = &city.Description;
+		// x["Completed"] = &city.Completed;
+		
+		todo := &TodoItemModel{
+			Id: city.Id,
+			Description: city.Description,
+			Completed: city.Completed,
+		}
+		// json.Marshal(todo)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+		data, err :=json.Marshal(todo)
+		// data = string(data)
+		de += string(data) 
+		// todoItems = append(todoItems, string(data))  
+        fmt.Printf("%v\n", string(data))
+    } else {
+
+        fmt.Println("No city found")
+    }
+	fmt.Println(de)
+
+	// var x map[string]interface{}
+	// json.Unmarshal([]byte(todoItems), &x);
+
+	// var x map[string]interface{}
+
+	// json.Unmarshal([]TodoItemModel(res), &x);
+
 	w.Header().Add("Content-Type", "application/json")
-    fmt.Fprintf(w, "Hello, %s!", dat)
+
+	defer db.Close()
+
+    fmt.Fprintf(w, "%s", de)
 	// w.Write(dat);
 }
 
