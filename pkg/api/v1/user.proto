@@ -1,0 +1,15 @@
+
+syntax = "proto3";
+package user;
+option go_package = "github.com/aadityadev/mstodo/pkg/api/v1";
+
+message UserRequest { 
+  int32 id = 1;
+  string name = 2;
+}
+
+message UserResponse { string name = 1; }
+
+service UserService {
+  rpc GetUser(UserRequest) returns (UserResponse) {};
+}
