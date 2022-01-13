@@ -117,6 +117,10 @@ func HelloServer(w http.ResponseWriter, r *http.Request) {
 func CreateTodo(w http.ResponseWriter, r *http.Request) {
 	var dat TodoItemModel
 	da, err := ioutil.ReadAll(r.Body);
+	fmt.Println("create dat(0)", da);
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 	if err != nil {
 		log.Println(err)
 		w.Header().Add("Content-Type", "application/json")
@@ -125,7 +129,7 @@ func CreateTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = json.Unmarshal(da, &dat)
-	fmt.Println("dat", dat);
+	fmt.Println("create dat(1)", dat);
 	if err != nil {
 		log.Println(err)
 		w.Header().Add("Content-Type", "application/json")
@@ -158,7 +162,7 @@ func CreateTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newId, err := res.LastInsertId();
-	defer db.Close()
+
 	fmt.Println("res is ",newId)
 	if err != nil {
 		log.Println(err)
@@ -166,15 +170,52 @@ func CreateTodo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	
+
+	sql = "SELECT * FROM testdb.todo WHERE id = ?;";
+	singleRes, err := db.Query(sql, newId)
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	var todoItems []TodoItemModel;
+	var alb TodoItemModel
+	for singleRes.Next() {
+        if err := singleRes.Scan(&alb.Id, &alb.Description, &alb.Completed); 
+		err != nil {
+            log.Println(err)
+			w.Header().Add("Content-Type", "application/json")
+			http.Error(w, err.Error(), 500)
+			return
+        }
+        todoItems = append(todoItems, alb)
+    }
+
+	b, err := json.Marshal(alb)
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	rowResponse := string(b)
+
+	fmt.Println("res is (2) ", rowResponse)
+
+	defer db.Close()
+
 	w.Header().Add("Content-Type", "application/json")
-	fmt.Fprintf(w, "%d", newId)
+	fmt.Fprintf(w, "%s", rowResponse)
 }
 
 func GetTodo(w http.ResponseWriter, r *http.Request) {
 	dat, err := json.Marshal(r.Body)
 	fmt.Println("dat %s", dat);
 	fmt.Println("err %s", err);
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 	db, err := sql.Open("mysql", "root:12345678@tcp(127.0.0.1:3306)/testdb")
 	if err != nil {
@@ -234,6 +275,9 @@ func UpdateTodo(w http.ResponseWriter, r *http.Request) {
 	da, err := ioutil.ReadAll(r.Body);
 	rowId, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64);
 	fmt.Println("row id: ", rowId);
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 	if err != nil {
 		log.Println(err)
@@ -297,7 +341,6 @@ func UpdateTodo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	
 	w.Header().Add("Content-Type", "application/json")
 	fmt.Fprintf(w, "%d", newId)
 }
