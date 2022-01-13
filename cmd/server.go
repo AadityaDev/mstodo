@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -113,44 +114,60 @@ func HelloServer(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateTodo(w http.ResponseWriter, r *http.Request) {
-	dat, err := json.Marshal(r.Body)
-	fmt.Println("dat %s", dat);
-	fmt.Println("err %s", err);
+	var dat TodoItemModel
+	da, err := ioutil.ReadAll(r.Body);
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	err = json.Unmarshal(da, &dat)
+	fmt.Println("dat", dat);
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	if dat.Description == "" {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, "Description is missing", 500)
+		return
+	}
 
 	db, err := sql.Open("mysql", "root:12345678@tcp(127.0.0.1:3306)/testdb")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
 	}
 
-	sql := "INSERT INTO testdb.todo(Id, Description, Completed) VALUES (" + ");";
-	res, err := db.Query(sql)
-	var todoItems []TodoItemModel;
-	de := "[";
-	if res.Next() {
-        var city TodoItemModel
-        err := res.Scan(&city.Id, &city.Description, &city.Completed)
-		todo := &TodoItemModel{
-			Id: city.Id,
-			Description: city.Description,
-			Completed: city.Completed,
-		}
-		// json.Marshal(todo)
-        if err != nil {
-            log.Fatal(err)
-        }
+	sql := "INSERT INTO testdb.todo(Description, Completed) VALUES (?,?);";
+	res, err := db.Exec(sql, dat.Description, dat.Completed)
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
 
-		data, err :=json.Marshal(todo)
-		de += string(data) 
-		todoItems = append(todoItems, *todo)  
-        fmt.Printf("%v\n", string(data))
-    } else {
-        fmt.Println("No city found")
-    }
-	de += "]";
-	fmt.Println(de)
-	w.Header().Add("Content-Type", "application/json")
+	newId, err := res.LastInsertId();
 	defer db.Close()
-    fmt.Fprintf(w, "%s", de)
+	fmt.Println("res is ",newId)
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	
+	w.Header().Add("Content-Type", "application/json")
+	fmt.Fprintf(w, "%d", newId)
 }
 
 func GetTodo(w http.ResponseWriter, r *http.Request) {
@@ -160,79 +177,110 @@ func GetTodo(w http.ResponseWriter, r *http.Request) {
 
 	db, err := sql.Open("mysql", "root:12345678@tcp(127.0.0.1:3306)/testdb")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
 	}
 
 	sql := "SELECT * FROM testdb.todo;"
 	res, err := db.Query(sql)
-	var todoItems []TodoItemModel;
-	de := "[";
-	if res.Next() {
-        var city TodoItemModel
-        err := res.Scan(&city.Id, &city.Description, &city.Completed)
-		todo := &TodoItemModel{
-			Id: city.Id,
-			Description: city.Description,
-			Completed: city.Completed,
-		}
-		// json.Marshal(todo)
-        if err != nil {
-            log.Fatal(err)
-        }
+	defer res.Close()
 
-		data, err :=json.Marshal(todo)
-		de += string(data) 
-		todoItems = append(todoItems, *todo)  
-        fmt.Printf("%v\n", string(data))
-    } else {
-        fmt.Println("No city found")
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	
+	var todoItems []TodoItemModel;
+	for res.Next() {
+        var alb TodoItemModel
+        if err := res.Scan(&alb.Id, &alb.Description, &alb.Completed); 
+		err != nil {
+            log.Println(err)
+			w.Header().Add("Content-Type", "application/json")
+			http.Error(w, err.Error(), 500)
+			return
+        }
+        todoItems = append(todoItems, alb)
     }
-	de += "]";
-	fmt.Println(de)
+    if err = res.Err(); 
+	err != nil {
+        log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	fmt.Printf("%v\n", todoItems)
+
+	b, err := json.Marshal(todoItems)
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
 	w.Header().Add("Content-Type", "application/json")
-	defer db.Close()
-    fmt.Fprintf(w, "%s", de)
+    fmt.Fprintf(w, "%s", string(b))
 }
 
 func UpdateTodo(w http.ResponseWriter, r *http.Request) {
-	dat, err := json.Marshal(r.Body)
-	fmt.Println("dat %s", dat);
-	fmt.Println("err %s", err);
+	var dat TodoItemModel
+	da, err := ioutil.ReadAll(r.Body);
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	err = json.Unmarshal(da, &dat)
+	fmt.Println("dat", dat);
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	if dat.Description == "" {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, "Description is missing", 500)
+		return
+	}
 
 	db, err := sql.Open("mysql", "root:12345678@tcp(127.0.0.1:3306)/testdb")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
 	}
 
-	sql := "SELECT * FROM testdb.todo;"
-	res, err := db.Query(sql)
-	var todoItems []TodoItemModel;
-	de := "[";
-	if res.Next() {
-        var city TodoItemModel
-        err := res.Scan(&city.Id, &city.Description, &city.Completed)
-		todo := &TodoItemModel{
-			Id: city.Id,
-			Description: city.Description,
-			Completed: city.Completed,
-		}
-		// json.Marshal(todo)
-        if err != nil {
-            log.Fatal(err)
-        }
+	sql := "INSERT INTO testdb.todo(Description, Completed) VALUES (?,?);";
+	res, err := db.Exec(sql, dat.Description, dat.Completed)
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
 
-		data, err :=json.Marshal(todo)
-		de += string(data) 
-		todoItems = append(todoItems, *todo)  
-        fmt.Printf("%v\n", string(data))
-    } else {
-        fmt.Println("No city found")
-    }
-	de += "]";
-	fmt.Println(de)
-	w.Header().Add("Content-Type", "application/json")
+	newId, err := res.LastInsertId();
 	defer db.Close()
-    fmt.Fprintf(w, "%s", de)
+	fmt.Println("res is ",newId)
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	
+	w.Header().Add("Content-Type", "application/json")
+	fmt.Fprintf(w, "%d", newId)
 }
 
 func init() {

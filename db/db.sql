@@ -6,3 +6,5 @@ create table testdb.todo (
     Completed smallint,
     primary key (Id)
 );
+
+INSERT INTO `testdb`.`todo` (`Description`) VALUES ('fd');
