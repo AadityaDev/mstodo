@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 
 	v "github.com/aadityadev/mstodo/pkg/api/v1"
 	"golang.org/x/xerrors"
@@ -227,8 +228,13 @@ func GetTodo(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateTodo(w http.ResponseWriter, r *http.Request) {
+	var res sql.Result
+	var err error
 	var dat TodoItemModel
 	da, err := ioutil.ReadAll(r.Body);
+	rowId, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64);
+	fmt.Println("row id: ", rowId);
+
 	if err != nil {
 		log.Println(err)
 		w.Header().Add("Content-Type", "application/json")
@@ -245,10 +251,10 @@ func UpdateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if dat.Description == "" {
+	if rowId <= 0 {
 		log.Println(err)
 		w.Header().Add("Content-Type", "application/json")
-		http.Error(w, "Description is missing", 500)
+		http.Error(w, "row id is missing!!!", 500)
 		return
 	}
 
@@ -260,16 +266,29 @@ func UpdateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sql := "INSERT INTO testdb.todo(Description, Completed) VALUES (?,?);";
-	res, err := db.Exec(sql, dat.Description, dat.Completed)
+
+	if((dat.Description != "") && (dat.Completed == true || dat.Completed == false)) {
+		sql := "UPDATE testdb.todo SET Description = ?, Completed = ? WHERE id = ?;";
+		res, err = db.Exec(sql, dat.Description, dat.Completed, rowId)	
+	} else if(dat.Description != "") {
+		sql := "UPDATE testdb.todo SET Description = ? WHERE id = ?;";
+		res, err = db.Exec(sql, dat.Description, rowId)
+	} else if((dat.Completed == true || dat.Completed == false)) {
+		sql := "UPDATE testdb.todo SET Completed = ? WHERE id = ?;";
+		res, err = db.Exec(sql, dat.Completed, rowId)
+	} 
 	if err != nil {
 		log.Println(err)
 		w.Header().Add("Content-Type", "application/json")
 		http.Error(w, err.Error(), 500)
 		return
 	}
+	fmt.Println("result after update is: ", res);
+	fmt.Println("result after update is: ", res);
 
-	newId, err := res.LastInsertId();
+	newId, err := res.RowsAffected();
+	fmt.Println("result after affected is: ", newId);
+
 	defer db.Close()
 	fmt.Println("res is ",newId)
 	if err != nil {
