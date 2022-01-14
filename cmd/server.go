@@ -269,10 +269,39 @@ func GetTodo(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateTodo(w http.ResponseWriter, r *http.Request) {
-	var res sql.Result
-	var err error
 	var dat TodoItemModel
 	da, err := ioutil.ReadAll(r.Body);
+	fmt.Println("update dat(0)", r.GetBody);
+	fmt.Println("update dat(0)", r.Body);
+	fmt.Println("update dat(0)", r.PostForm.Get("Completed"));
+	fmt.Println("update dat(0)", r.Form.Get("Completed"));
+	fmt.Println("update dat(0)", r.FormValue("Completed"));
+	fmt.Println("update dat(0)", r.PostFormValue("Completed"));
+	fmt.Println("update dat(0)", da);
+	w.Header().Set("Access-Control-Allow-Methods", "*")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	
+	err = json.Unmarshal(da, &dat)
+	fmt.Println("update dat(1)", dat);
+	fmt.Println("update dat(2)", dat.Completed);
+	
+	if err != nil {
+		log.Println(err)
+		w.Header().Add("Content-Type", "application/json")
+		// http.Error(w, err.Error(), 500)
+		fmt.Fprintf(w, "%d", err.Error())
+		return
+	}
+
 	rowId, err := strconv.ParseInt(r.URL.Query().Get("id"), 10, 64);
 	fmt.Println("row id: ", rowId);
 
@@ -282,7 +311,9 @@ func UpdateTodo(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		w.Header().Add("Content-Type", "application/json")
-		http.Error(w, err.Error(), 500)
+		// http.Error(w, err.Error(), 500)
+		fmt.Fprintf(w, "%d", err.Error())
+
 		return
 	}
 
@@ -294,6 +325,9 @@ func UpdateTodo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
+
+	fmt.Println("row id 2: ", rowId);
+
 
 	if rowId <= 0 {
 		log.Println(err)
@@ -310,17 +344,24 @@ func UpdateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+		fmt.Println("row id 3 : ", rowId);
 
+	var	res  sql.Result;
 	if((dat.Description != "") && (dat.Completed == true || dat.Completed == false)) {
+		fmt.Println("if 1 ");
 		sql := "UPDATE testdb.todo SET Description = ?, Completed = ? WHERE id = ?;";
 		res, err = db.Exec(sql, dat.Description, dat.Completed, rowId)	
 	} else if(dat.Description != "") {
+		fmt.Println("if 2 ");
 		sql := "UPDATE testdb.todo SET Description = ? WHERE id = ?;";
 		res, err = db.Exec(sql, dat.Description, rowId)
 	} else if((dat.Completed == true || dat.Completed == false)) {
+		fmt.Println("if 3 ");
 		sql := "UPDATE testdb.todo SET Completed = ? WHERE id = ?;";
 		res, err = db.Exec(sql, dat.Completed, rowId)
 	} 
+	fmt.Println("sql is: %d");
+
 	if err != nil {
 		log.Println(err)
 		w.Header().Add("Content-Type", "application/json")
